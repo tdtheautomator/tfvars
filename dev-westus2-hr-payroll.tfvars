@@ -1,3 +1,8 @@
+location        = "westus2"
+department      = "hr"
+appname         = "payroll"
+environment = "dev"
+
 #------------------Networking Inputs---------------
 vnet_address_space = ["10.1.1.0/24"]
 vnet_subnets = {
