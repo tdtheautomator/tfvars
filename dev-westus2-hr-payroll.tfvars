@@ -1,6 +1,7 @@
-location        = "westus2"
-department      = "hr"
-appname         = "payroll"
+#------------------Core Inputs---------------
+location    = "westus2"
+department  = "hr"
+appname     = "payroll"
 environment = "dev"
 
 #------------------Networking Inputs---------------
@@ -19,4 +20,3 @@ vnet_subnets = {
     addr = ["10.1.1.128/26"]
   }
 }
-#--------------------------------------------------
