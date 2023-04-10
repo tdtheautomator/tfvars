@@ -1,0 +1,69 @@
+name: $(date:yyyyMMdd)$(rev:.r)_Build_${{ parameters.Env }}-${{ parameters.Location }}-$(department)-$(appname)
+trigger: none
+
+parameters:
+  - name: Env
+    displayName: Environment
+    type: string
+    default: 'dev'
+    values:
+    - test
+    - dev
+    - prod
+
+  - name: Location
+    displayName: Location
+    type: string
+    default: 'southeastasia'
+    values:
+    - westus2
+    - westus
+    - eastus
+    - eastus2
+    - southeastasia
+    - eastasia
+    - centralindia
+    - westindia
+    - australiacentral
+    - australiaeast
+
+variables:
+ - name: tfvarsFile
+   value: '${{ parameters.Env }}-${{ parameters.Location }}-$(department)-$(appname).tfvars'
+ - name: tfvarsRepo
+   value: "https://raw.githubusercontent.com/tdtheautomator/tfvars/main"
+pool:
+  vmImage: ubuntu-latest
+
+stages :
+  - stage : Prepare_Artifacts
+    jobs:
+      - job: prepare_artifacts
+        steps:
+        - script: |
+            echo Environment: ${{ parameters.Env }}
+            echo Location: ${{ parameters.Location }}
+            echo Department: $(department)
+            echo APPNAME : $(appname)
+            echo TFVARS_File : ${{ variables.tfvarsFile }}
+            echo TFVARS_Repo : ${{ variables.tfvarsRepo }}
+          displayName: 'Reading Input Variables'
+        - task: CopyFiles@2
+          displayName: Copying Files
+          inputs:
+            SourceFolder: '$(System.DefaultWorkingDirectory)/deploy'
+            Contents: '**'
+            TargetFolder: '$(Build.ArtifactStagingDirectory)'
+            OverWrite: true
+        - script: curl -o $(Build.ArtifactStagingDirectory)/${{ variables.tfvarsFile }} "${{ variables.tfvarsRepo }}"/"${{ variables.tfvarsFile }}"
+          displayName: downloading tfvars file
+        - script: cat $(Build.ArtifactStagingDirectory)/${{ variables.tfvarsFile }}
+          displayName: tfvars content
+        - script: ls -la $(Build.ArtifactStagingDirectory)
+          displayName: final contents
+        - task: PublishBuildArtifacts@1
+          inputs:
+            PathtoPublish: '$(Build.ArtifactStagingDirectory)'
+            ArtifactName: '${{ parameters.Env }}-${{ parameters.Location }}-$(department)-$(appname)'
+            publishLocation: 'Container'
+            StoreAsTar: true

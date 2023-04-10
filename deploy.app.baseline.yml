@@ -1,0 +1,161 @@
+name: $(date:yyyyMMdd)$(rev:.r)_${{ parameters.Action }}_${{ parameters.Env }}-${{ parameters.Location }}-$(department)-$(appname)
+
+trigger: none
+
+pr: none
+
+parameters:
+
+  - name: Env
+    displayName: Environment
+    type: string
+    default: 'dev'
+    values:
+    - test
+    - dev
+    - prod
+
+  - name: Action
+    displayName: Action
+    type: string
+    default: 'Plan'
+    values:
+    - Plan
+    - Apply
+    - Destroy
+
+  - name: Location
+    displayName: Location
+    type: string
+    default: 'southeastasia'
+    values:
+    - westus2
+    - westus
+    - eastus
+    - eastus2
+    - southeastasia
+    - eastasia
+    - centralindia
+    - westindia
+    - australiacentral
+    - australiaeast
+    
+  - name: TF_Ver
+    displayName: Terraform Version
+    type: string
+    default: '1.3.9'
+    values:
+    - 1.3.9
+    - 1.4.0
+    - 1.4.4
+
+
+variables:
+  - name: backendAzureRmContainerName
+    value: ${{ parameters.Env }}
+  - name: backendAzureRmKey
+    value: 'appbaseline/${{ parameters.Env }}-${{ parameters.Location }}-$(department)-$(appname).tfstate'
+  - name: tf_ver
+    value: ${{ parameters.TF_Ver }}
+  - name: action
+    value: ${{ parameters.Action }}
+  - name: tfvarsFile
+    value: '${{ parameters.Env }}-${{ parameters.Location }}-$(department)-$(appname).tfvars'
+
+
+stages :
+  - stage: Terraform_Plan
+    condition: eq('${{ parameters.Action }}', 'Plan')
+    jobs:
+      - job: terraform_plan
+        steps:
+          - task: TerraformInstaller@0
+            displayName: 'terraform install'
+            inputs:
+              terraformVersion: '${{ variables.TF_Ver }}'
+          - task: TerraformTaskV2@2
+            displayName: 'terraform init'
+            inputs:
+              provider: 'azurerm'
+              command: 'init'
+              backendServiceArm: $(backendServiceArm)
+              backendAzureRmResourceGroupName: $(backendAzureRmResourceGroupName)
+              backendAzureRmStorageAccountName: $(backendAzureRmStorageAccountName)
+              backendAzureRmContainerName: '${{ variables.backendAzureRmContainerName }}'
+              backendAzureRmKey: '${{ variables.backendAzureRmKey }}' 
+              workingDirectory: '$(System.DefaultWorkingDirectory)/deploy/'
+          - script: curl -o $(System.DefaultWorkingDirectory)/deploy/${{ variables.tfvarsFile }} $(tfvarsRepo)/"${{ variables.tfvarsFile }}"
+            displayName: downloading tfvars file
+          - task: TerraformTaskV2@2
+            displayName: 'terraform plan'
+            condition: and(succeeded(), eq(variables['Action'], 'Plan'))
+            inputs:
+              provider: 'azurerm'
+              command: 'plan'
+              workingDirectory: '$(System.DefaultWorkingDirectory)/deploy/'
+              commandOptions: '-var-file=${{ variables.tfvarsFile }}'
+              environmentServiceNameAzureRM: $(backendServiceArm)
+
+  - stage: Terraform_Apply
+    condition: eq('${{ parameters.Action }}', 'Apply')
+    jobs:
+      - job: terraform_apply
+        steps:
+          - task: TerraformInstaller@0
+            displayName: 'terraform install'
+            inputs:
+              terraformVersion: '${{ variables.TF_Ver }}'
+          - task: TerraformTaskV2@2
+            displayName: 'terraform init'
+            inputs:
+              provider: 'azurerm'
+              command: 'init'
+              backendServiceArm: $(backendServiceArm)
+              backendAzureRmResourceGroupName: $(backendAzureRmResourceGroupName)
+              backendAzureRmStorageAccountName: $(backendAzureRmStorageAccountName)
+              backendAzureRmContainerName: '${{ variables.backendAzureRmContainerName }}'
+              backendAzureRmKey: '${{ variables.backendAzureRmKey }}' 
+              workingDirectory: '$(System.DefaultWorkingDirectory)/deploy/'
+          - script: curl -o $(System.DefaultWorkingDirectory)/deploy/${{ variables.tfvarsFile }} $(tfvarsRepo)/"${{ variables.tfvarsFile }}"
+            displayName: downloading tfvars file
+          - task: TerraformTaskV2@2
+            displayName: 'terraform apply'
+            condition: and(succeeded(), eq(variables['Action'], 'Apply'))
+            inputs:
+              provider: 'azurerm'
+              command: 'apply'
+              workingDirectory: '$(System.DefaultWorkingDirectory)/deploy/'
+              commandOptions: '-var-file=${{ variables.tfvarsFile }}'
+              environmentServiceNameAzureRM: '$(backendServiceArm)'
+              
+  - stage: Terraform_Destroy
+    condition: eq('${{ parameters.Action }}', 'Destroy')
+    jobs:
+      - job: terraform_apply
+        steps:
+          - task: TerraformInstaller@0
+            displayName: 'terraform install'
+            inputs:
+              terraformVersion: '${{ variables.TF_Ver }}'
+          - task: TerraformTaskV2@2
+            displayName: 'terraform init'
+            inputs:
+              provider: 'azurerm'
+              command: 'init'
+              backendServiceArm: $(backendServiceArm)
+              backendAzureRmResourceGroupName: $(backendAzureRmResourceGroupName)
+              backendAzureRmStorageAccountName: $(backendAzureRmStorageAccountName)
+              backendAzureRmContainerName: '${{ variables.backendAzureRmContainerName }}'
+              backendAzureRmKey: '${{ variables.backendAzureRmKey }}' 
+              workingDirectory: '$(System.DefaultWorkingDirectory)/deploy/'
+          - script: curl -o $(System.DefaultWorkingDirectory)/deploy/${{ variables.tfvarsFile }} $(tfvarsRepo)/"${{ variables.tfvarsFile }}"
+            displayName: downloading tfvars file
+          - task: TerraformTaskV2@2
+            displayName: 'terraform destroy'
+            condition: and(succeeded(), eq(variables['Action'], 'Destroy'))
+            inputs:
+              provider: 'azurerm'
+              command: 'destroy'
+              workingDirectory: '$(System.DefaultWorkingDirectory)/deploy/'
+              commandOptions: '-var-file=${{ variables.tfvarsFile }}'
+              environmentServiceNameAzureRM: '$(backendServiceArm)'
