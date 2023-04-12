@@ -1,0 +1,14 @@
+name: TFSec Scan
+appendCommitMessageToRunName: false
+
+trigger: none
+
+pool:
+  vmImage: ubuntu-latest
+
+steps:
+- task: tfsec@1
+  inputs:
+    version: 'v1.26.0'
+    args: '--format junit --include-passed'
+    dir: '$(System.DefaultWorkingDirectory)/deploy'
